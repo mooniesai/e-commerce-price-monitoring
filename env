@@ -1,0 +1,4 @@
+CDP_API_KEY_ID=your_key_here
+CDP_API_KEY_SECRET=your_secret_here
+WALLET_ADDRESS=0xYourBaseAddressHere
+PORT=3000
