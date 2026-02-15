@@ -1,4 +1,9 @@
-CDP_API_KEY_ID=your_key_here
-CDP_API_KEY_SECRET=your_secret_here
-WALLET_ADDRESS=0xYourBaseAddressHere
+# Coinbase CDP Credentials
+CDP_API_KEY_ID=your_real_key_here
+CDP_API_KEY_SECRET=your_real_secret_here
+
+# Wallet that will receive USDC on Base mainnet
+WALLET_ADDRESS=0xYourRealBaseWalletAddressHere
+
+# Server Port (Railway overrides automatically)
 PORT=3000
