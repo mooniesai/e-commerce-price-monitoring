@@ -1,0 +1,24 @@
+{
+  "name": "price-watcher-x402",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "bootstrap.js",
+  "scripts": {
+    "start": "node bootstrap.js",
+    "dev": "node --watch bootstrap.js"
+  },
+  "dependencies": {
+    "@coinbase/x402": "^2.1.0",
+    "@x402/core": "^2.1.0",
+    "@x402/express": "^2.1.0",
+    "@x402/evm": "^2.1.0",
+    "@x402/paywall": "^2.1.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.18.2",
+    "playwright": "^1.52.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
