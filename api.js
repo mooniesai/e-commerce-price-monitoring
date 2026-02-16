@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
-import { paymentMiddleware } from "x402-express";
-import { facilitator } from "@coinbase/x402";
+import { chromium } from "playwright";
+import { paymentMiddleware } from "@x402/express";
 
 const app = express();
 app.use(cors());
@@ -10,47 +10,66 @@ app.use(express.json());
 const PORT = process.env.PORT || 3000;
 const WALLET_ADDRESS = process.env.WALLET_ADDRESS;
 
-// x402 paywall middleware (mainnet facilitator)
+if (!WALLET_ADDRESS) {
+  console.error("Missing WALLET_ADDRESS env var");
+  process.exit(1);
+}
+
+/**
+ * x402 paywall middleware (Express)
+ * (This sets up the payment-required + verification flow)
+ */
 app.use(
-  paymentMiddleware(
-    WALLET_ADDRESS,
-    {
-      "POST /v1/price/check": {
-        price: "$0.02",
-        network: "base",
-        config: {
-          description: "Checks a product page URL and returns the current price + optional threshold status.",
-          mimeType: "application/json",
-        },
-      },
-    },
-    facilitator
-  )
+  paymentMiddleware({
+    "POST /v1/price/check": {
+      // Keep this minimal for now; you can add more networks/schemes later
+      accepts: [
+        {
+          network: "base",
+          scheme: "exact",
+          amount: "0.02",
+          asset: "USDC",
+          payTo: WALLET_ADDRESS
+        }
+      ],
+      description: "Fetch the current price for a product URL"
+    }
+  })
 );
 
-// ✅ Your endpoint (put your Playwright price fetch logic inside here)
 app.post("/v1/price/check", async (req, res) => {
   try {
-    const { url, threshold } = req.body || {};
-    if (!url) return res.status(400).json({ error: "Missing required field: url" });
+    const { url } = req.body;
+    if (!url) return res.status(400).json({ error: "Missing url" });
 
-    // TODO: your price extraction logic here
-    // const price = await fetchPrice(url);
+    // ---- Playwright scrape (simple example) ----
+    const browser = await chromium.launch({
+      args: ["--no-sandbox", "--disable-setuid-sandbox"]
+    });
+
+    const page = await browser.newPage();
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45000 });
+
+    // TODO: replace selector with the real one for your target site(s)
+    // Example fallback: return page title if no price selector yet
+    const title = await page.title();
+
+    await browser.close();
 
     return res.json({
+      ok: true,
       url,
-      price: null,
-      currency: "USD",
-      threshold: threshold ?? null,
-      status: null,
+      title
+      // price: "TODO"
     });
   } catch (err) {
-    return res.status(500).json({ error: err?.message || "Failed to fetch price" });
+    console.error(err);
+    return res.status(500).json({ error: "Failed to fetch price" });
   }
 });
 
 app.get("/", (req, res) => {
-  res.send("Price Watcher API is running. Use POST /v1/price/check");
+  res.send("Price Watcher API is running");
 });
 
 app.listen(PORT, () => {
