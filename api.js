@@ -33,7 +33,7 @@ if (!process.env.CDP_API_KEY_ID || !process.env.CDP_API_KEY_SECRET || !payTo) {
 const facilitatorClient = new HTTPFacilitatorClient(facilitator);
 const resourceServer = new x402ResourceServer(facilitatorClient).register(
   NETWORK,
-  new ExactEvmSchema()
+  new ExactEvmScheme()
 );
 
 // paywall config (for wallet UI flows; keep aligned with docs)
