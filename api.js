@@ -5,7 +5,7 @@ import cors from "cors";
 
 // x402 imports (use server paths exactly)
 import { paymentMiddleware, x402ResourceServer } from "@x402/express";
-import { ExactEvmSchema } from "@x402/evm/exact/server";
+import { ExactEvmScheme } from "@x402/evm/exact/server";
 import { HTTPFacilitatorClient } from "@x402/core/server";
 import { facilitator } from "@coinbase/x402";
 
