@@ -1,10 +1,7 @@
-// bootstrap.js
-import { webcrypto } from "crypto";
+import app from "./api.js";
 
-// REQUIRED crypto polyfill for x402
-if (typeof globalThis.crypto === "undefined") {
-  globalThis.crypto = webcrypto;
-}
+const PORT = process.env.PORT || 3000;
 
-// Load main API after polyfill
-import("./api.js");
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
