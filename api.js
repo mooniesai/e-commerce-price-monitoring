@@ -74,6 +74,5 @@ app.post("/v1/price/check", payment, async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Listening on port ${PORT}`);
-});
+export default app;
+
