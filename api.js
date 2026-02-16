@@ -1,76 +1,58 @@
 import express from "express";
 import cors from "cors";
-import { chromium } from "playwright";
-import { createX402ExpressMiddleware } from "@x402/express";
+import { paymentMiddleware } from "x402-express";
+import { facilitator } from "@coinbase/x402";
 
 const app = express();
-
 app.use(cors());
 app.use(express.json());
 
-/**
- * x402 middleware
- * This verifies payment before your route executes.
- */
+const PORT = process.env.PORT || 3000;
+const WALLET_ADDRESS = process.env.WALLET_ADDRESS;
+
+// x402 paywall middleware (mainnet facilitator)
 app.use(
-  createX402ExpressMiddleware({
-    network: "base",
-    walletAddress: process.env.WALLET_ADDRESS,
-    price: {
-      amount: "0.02",
-      currency: "USDC"
-    }
-  })
+  paymentMiddleware(
+    WALLET_ADDRESS,
+    {
+      "POST /v1/price/check": {
+        price: "$0.02",
+        network: "base",
+        config: {
+          description: "Checks a product page URL and returns the current price + optional threshold status.",
+          mimeType: "application/json",
+        },
+      },
+    },
+    facilitator
+  )
 );
 
-/**
- * Health check
- */
-app.get("/", (req, res) => {
-  res.send("Price Watcher API is live.");
-});
-
-/**
- * Main endpoint
- */
+// ✅ Your endpoint (put your Playwright price fetch logic inside here)
 app.post("/v1/price/check", async (req, res) => {
   try {
-    const { url } = req.body;
+    const { url, threshold } = req.body || {};
+    if (!url) return res.status(400).json({ error: "Missing required field: url" });
 
-    if (!url) {
-      return res.status(400).json({ error: "Missing product URL" });
-    }
+    // TODO: your price extraction logic here
+    // const price = await fetchPrice(url);
 
-    // Launch browser
-    const browser = await chromium.launch({
-      args: ["--no-sandbox", "--disable-setuid-sandbox"]
+    return res.json({
+      url,
+      price: null,
+      currency: "USD",
+      threshold: threshold ?? null,
+      status: null,
     });
-
-    const page = await browser.newPage();
-    await page.goto(url, { waitUntil: "domcontentloaded" });
-
-    // Basic price detection logic (can improve later)
-    const price = await page.evaluate(() => {
-      const text = document.body.innerText;
-      const match = text.match(/\$\d+(?:\.\d{2})?/);
-      return match ? match[0] : null;
-    });
-
-    await browser.close();
-
-    if (!price) {
-      return res.status(404).json({ error: "Price not found" });
-    }
-
-    res.json({
-      success: true,
-      price
-    });
-
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Failed to fetch price" });
+  } catch (err) {
+    return res.status(500).json({ error: err?.message || "Failed to fetch price" });
   }
 });
 
-export default app;
+app.get("/", (req, res) => {
+  res.send("Price Watcher API is running. Use POST /v1/price/check");
+});
+
+app.listen(PORT, () => {
+  console.log(`Listening on port ${PORT}`);
+});
