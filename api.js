@@ -6,6 +6,7 @@ import { paymentMiddleware } from "x402-express";
 import { facilitator } from "@coinbase/x402";
 
 const app = express();
+
 app.use(cors());
 app.use(express.json());
 
@@ -17,16 +18,49 @@ if (!PAY_TO) {
   process.exit(1);
 }
 
-// ✅ Free endpoints first (no payment)
-app.get("/", (req, res) => res.send("Price Watcher API is running ✅"));
-app.get("/health", (req, res) => res.json({ status: "ok" }));
+/* ===============================
+   Free Endpoints
+================================= */
 
-// ✅ x402 payment middleware (Coinbase docs pattern)
+app.get("/", (req, res) => {
+  res.send("Price Watcher API is running ✅");
+});
+
+app.get("/health", (req, res) => {
+  res.json({ status: "ok" });
+});
+
+/* ===============================
+   Playwright Runtime Check
+================================= */
+
+app.get("/playwright-check", async (req, res) => {
+  let browser;
+  try {
+    browser = await chromium.launch({
+      args: ["--no-sandbox", "--disable-setuid-sandbox"]
+    });
+
+    await browser.close();
+
+    return res.json({ ok: true, message: "Playwright launched successfully" });
+  } catch (err) {
+    return res.status(200).json({
+      ok: false,
+      message: err?.message || "Playwright failed"
+    });
+  }
+});
+
+/* ===============================
+   x402 Payment Middleware
+================================= */
+
 const payment = paymentMiddleware(
   PAY_TO,
   {
     "POST /v1/price/check": {
-      price: "0.02",          // USDC amount
+      price: "0.02",
       network: "base",
       config: {
         description: "Fetch page title (and later price) for a product URL",
@@ -47,32 +81,77 @@ const payment = paymentMiddleware(
       }
     }
   },
-  facilitator // uses CDP_API_KEY_ID + CDP_API_KEY_SECRET from env
+  facilitator
 );
 
-// ✅ Protected endpoint: payment required
-app.post("/v1/price/check", payment, async (req, res) => {
-  try {
-    const { url } = req.body || {};
-    if (!url) return res.status(400).json({ error: "Missing url" });
+/* ===============================
+   Protected Endpoint
+================================= */
 
-    const browser = await chromium.launch({
+app.post("/v1/price/check", payment, async (req, res) => {
+  const startedAt = Date.now();
+  const { url } = req.body || {};
+
+  if (!url || typeof url !== "string") {
+    return res.status(400).json({
+      ok: false,
+      error: "Missing or invalid url"
+    });
+  }
+
+  let browser;
+
+  try {
+    browser = await chromium.launch({
       args: ["--no-sandbox", "--disable-setuid-sandbox"]
     });
 
-    const page = await browser.newPage();
-    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45000 });
+    const context = await browser.newContext({
+      userAgent:
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+    });
 
+    const page = await context.newPage();
+
+    page.setDefaultTimeout(20000);
+    page.setDefaultNavigationTimeout(20000);
+
+    page.on("console", (msg) =>
+      console.log("[PAGE CONSOLE]", msg.text())
+    );
+
+    page.on("pageerror", (err) =>
+      console.log("[PAGE ERROR]", err?.message)
+    );
+
+    const response = await page.goto(url, {
+      waitUntil: "domcontentloaded"
+    });
+
+    const status = response?.status?.() ?? null;
     const title = await page.title();
 
-    await browser.close();
+    const durationMs = Date.now() - startedAt;
 
-    return res.json({ ok: true, url, title });
+    return res.status(200).json({
+      ok: true,
+      url,
+      status,
+      title,
+      durationMs
+    });
   } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "Failed to fetch price" });
-  }
-});
+    const durationMs = Date.now() - startedAt;
 
-export default app;
-
+    return res.status(200).json({
+      ok: false,
+      url,
+      error: "Scrape failed",
+      reason: err?.name || "Error",
+      message: err?.message || "Unknown error",
+      durationMs
+    });
+  } finally {
+    try {
+      if (browser) await browser.close();
+    } catch {}
