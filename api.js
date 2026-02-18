@@ -1,4 +1,4 @@
-import express from "express";
+import { paymentMiddleware } from "@x402/express";
 import cors from "cors";
 import { chromium } from "playwright";
 import { paymentMiddleware } from "@x402/express";
