@@ -9,12 +9,13 @@
   "engines": {
     "node": ">=18"
   },
-  "dependencies": {
-    "@x402/core": "^0.2.0",
-    "@x402/evm": "^0.2.0",
-    "@x402/express": "^0.2.0",
-    "cors": "^2.8.5",
-    "express": "^4.18.2",
-    "playwright": "^1.58.2"
+"dependencies": {
+  "@x402/core": "latest",
+  "@x402/evm": "latest",
+  "@x402/express": "latest",
+  "cors": "^2.8.5",
+  "express": "^4.18.2",
+  "playwright": "^1.58.2"
+}
   }
 }
