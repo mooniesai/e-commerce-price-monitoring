@@ -4,16 +4,17 @@
   "type": "module",
   "main": "bootstrap.js",
   "scripts": {
-    "start": "node bootstrap.js",
-    "postinstall": "npx playwright install --with-deps chromium"
+    "start": "node bootstrap.js"
   },
   "engines": {
     "node": ">=18"
   },
   "dependencies": {
-    "@x402/express": "latest",
+    "@x402/core": "^0.2.0",
+    "@x402/evm": "^0.2.0",
+    "@x402/express": "^0.2.0",
     "cors": "^2.8.5",
     "express": "^4.18.2",
-    "playwright": "^1.42.0"
+    "playwright": "^1.58.2"
   }
 }
