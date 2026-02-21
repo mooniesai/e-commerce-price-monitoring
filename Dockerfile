@@ -35,9 +35,11 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm install --omit=dev
 
-# Force browsers to install into node_modules path (matches your error path)
+ARG CACHEBUST=2
+
+# Force browsers to install into node_modules path
 ENV PLAYWRIGHT_BROWSERS_PATH=0
-RUN npx playwright install chromium
+RUN npx playwright install --with-deps chromium
 
 COPY . .
 
