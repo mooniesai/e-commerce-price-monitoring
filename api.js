@@ -40,7 +40,7 @@ function getRealIp(req) {
 // ── x402 setup ──
 const facilitatorClient = new HTTPFacilitatorClient({ url: FACILITATOR_URL });
 const resourceServer = new x402ResourceServer(facilitatorClient)
-  .register(NETWORK, new ExactEvmScheme());
+  .register("eip155:*", new ExactEvmScheme());
 
 // ── x402 paywall — only hits if free tier is exhausted ──
 app.use(
