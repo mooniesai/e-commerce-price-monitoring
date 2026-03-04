@@ -17,7 +17,7 @@ app.use(express.json());
 
 const PAY_TO = process.env.WALLET_ADDRESS;
 const FACILITATOR_URL = process.env.FACILITATOR_URL || "https://x402.org/facilitator";
-const NETWORK = process.env.X402_NETWORK || "eip155:84532";
+const NETWORK = process.env.X402_NETWORK || "eip155:8453";
 
 if (!PAY_TO) {
   console.error("❌ Missing WALLET_ADDRESS env var");
