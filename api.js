@@ -16,7 +16,7 @@ app.use(cors());
 app.use(express.json());
 
 const PAY_TO = process.env.WALLET_ADDRESS;
-const FACILITATOR_URL = process.env.FACILITATOR_URL || "https://x402.org/facilitator";
+const FACILITATOR_URL = process.env.FACILITATOR_URL || "https://api.cdp.coinbase.com/platform/v2/x402";
 const NETWORK = process.env.X402_NETWORK || "eip155:8453";
 
 if (!PAY_TO) {
@@ -25,7 +25,6 @@ if (!PAY_TO) {
 }
 
 // ── Free tier usage tracker (in-memory, resets on restart) ──
-// Key: IP address  Value: number of free checks used
 const freeUsage = new Map();
 const FREE_LIMIT = 4;
 
@@ -37,12 +36,17 @@ function getRealIp(req) {
   );
 }
 
-// ── x402 setup ──
-const facilitatorClient = new HTTPFacilitatorClient({ url: FACILITATOR_URL });
-const resourceServer = new x402ResourceServer(facilitatorClient)
-  .register("eip155:*", new ExactEvmScheme());
+// ── x402 setup with CDP facilitator (supports Base Mainnet) ──
+const facilitatorClient = new HTTPFacilitatorClient({
+  url: FACILITATOR_URL,
+  cdpApiKeyId: process.env.CDP_API_KEY_ID,
+  cdpApiKeySecret: process.env.CDP_API_KEY_SECRET,
+});
 
-// ── x402 paywall — only hits if free tier is exhausted ──
+const resourceServer = new x402ResourceServer(facilitatorClient)
+  .register(NETWORK, new ExactEvmScheme());
+
+// ── x402 paywall ──
 app.use(
   paymentMiddleware(
     {
@@ -69,7 +73,6 @@ async function scrapePrice(url) {
 
   const page = await browser.newPage();
 
-  // Look human
   await page.setExtraHTTPHeaders({
     "Accept-Language": "en-US,en;q=0.9",
   });
@@ -78,7 +81,6 @@ async function scrapePrice(url) {
 
   const title = await page.title();
 
-  // Try multiple common price selectors across fashion/retail sites
   const price = await page.evaluate(() => {
     const selectors = [
       '[class*="price"]',
@@ -88,10 +90,10 @@ async function scrapePrice(url) {
       '[itemprop="price"]',
       '.product-price',
       '.sale-price',
-      '#priceblock_ourprice',    // Amazon
-      '.a-price-whole',          // Amazon
-      '[class*="product__price"]', // Shopify
-      '[class*="pdp-price"]',    // ASOS, fashion sites
+      '#priceblock_ourprice',
+      '.a-price-whole',
+      '[class*="product__price"]',
+      '[class*="pdp-price"]',
     ];
     for (const sel of selectors) {
       const el = document.querySelector(sel);
@@ -109,7 +111,7 @@ async function scrapePrice(url) {
 // Health check
 app.get("/", (req, res) => res.send("Price Watcher API is running ✅"));
 
-// Free tier status check — so clients know how many free checks remain
+// Free tier status check
 app.get("/v1/usage", (req, res) => {
   const ip = getRealIp(req);
   const used = freeUsage.get(ip) || 0;
@@ -143,7 +145,6 @@ app.post("/v1/price/check", async (req, res) => {
     const { url, threshold } = req.body || {};
     if (!url) return res.status(400).json({ error: "Missing url" });
 
-    // If still in free tier, serve without payment and increment counter
     if (isFree) {
       freeUsage.set(ip, used + 1);
       const { title, price } = await scrapePrice(url);
@@ -158,7 +159,6 @@ app.post("/v1/price/check", async (req, res) => {
       });
     }
 
-    // Paid tier — x402 middleware already verified payment above
     const { title, price } = await scrapePrice(url);
     return res.json({
       ok: true,
