@@ -254,11 +254,4 @@ function extractPrice(text) {
   return { price: null, currency: "USD" };
 }
 
-app.listen(PORT, () => {
-  console.log(`✅ Price Watcher API running on port ${PORT}`);
-  console.log(`🌐 Network: ${NETWORK}`);
-  console.log(`💸 Price: $0.02`);
-  console.log(`👛 Pay-to wallet: ${PAY_TO}`);
-});
-
 export default app;
