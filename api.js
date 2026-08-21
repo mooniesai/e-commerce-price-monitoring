@@ -1,4 +1,3 @@
-
 import express from "express";
 import cors from "cors";
 import { chromium } from "playwright";
@@ -10,7 +9,13 @@ import { ExactEvmScheme } from "@x402/evm/exact/server";
 import { HTTPFacilitatorClient } from "@x402/core/server";
 import { facilitator } from "@coinbase/x402";
 
+import {
+  declareDiscoveryExtension,
+  bazaarResourceServerExtension
+} from "@x402/extensions/bazaar";
+
 const app = express();
+
 app.use(cors());
 app.use(express.json());
 
@@ -33,10 +38,13 @@ if (!PAY_TO) {
 
 // x402 facilitator + resource server
 const facilitatorClient = new HTTPFacilitatorClient(facilitator);
-const resourceServer = new x402ResourceServer(facilitatorClient).register(
-  NETWORK,
-  new ExactEvmScheme()
-);
+
+const resourceServer = new x402ResourceServer(facilitatorClient)
+  .register(
+    NETWORK,
+    new ExactEvmScheme()
+  )
+  .registerExtension(bazaarResourceServerExtension);
 
 // Health / info route
 app.get("/", (req, res) => {
@@ -46,6 +54,7 @@ app.get("/", (req, res) => {
 // Optional diagnostic route
 app.get("/playwright-check", async (req, res) => {
   let browser;
+
   try {
     browser = await playwright.launch({
       headless: true,
@@ -55,21 +64,29 @@ app.get("/playwright-check", async (req, res) => {
     });
 
     const page = await browser.newPage();
+
     await page.goto("https://example.com", {
       waitUntil: "domcontentloaded",
       timeout: 20000
     });
 
     const title = await page.title();
-    res.json({ ok: true, title });
+
+    res.json({
+      ok: true,
+      title
+    });
   } catch (err) {
     console.error("❌ Playwright check failed:", err);
+
     res.status(500).json({
       ok: false,
       error: err.message || String(err)
     });
   } finally {
-    if (browser) await browser.close();
+    if (browser) {
+      await browser.close();
+    }
   }
 });
 
@@ -86,10 +103,56 @@ app.use(
             payTo: PAY_TO
           }
         ],
-        description: "Fetch current product price from a given e-commerce URL",
-        mimeType: "application/json"
+
+        description:
+          "Fetch the current product price from a public e-commerce product URL and optionally compare it with a target price.",
+
+        mimeType: "application/json",
+
+        extensions: {
+          ...declareDiscoveryExtension({
+            bodyType: "json",
+
+            input: {
+              url: "https://www.sephora.com/product/example-product",
+              threshold: 20
+            },
+
+            inputSchema: {
+              properties: {
+                url: {
+                  type: "string",
+                  format: "uri",
+                  description:
+                    "Public e-commerce product page URL to inspect."
+                },
+
+                threshold: {
+                  type: "number",
+                  description:
+                    "Optional target price. If provided, the response indicates whether the current product price is at or below this amount."
+                }
+              },
+
+              required: ["url"]
+            },
+
+            output: {
+              example: {
+                ok: true,
+                url: "https://www.sephora.com/product/example-product",
+                title: "Example Product",
+                price: 18,
+                currency: "USD",
+                threshold: 20,
+                belowThreshold: true
+              }
+            }
+          })
+        }
       }
     },
+
     resourceServer
   )
 );
@@ -114,7 +177,9 @@ app.post("/v1/price/check", async (req, res) => {
         : null;
 
     const thresholdNumber =
-      threshold !== undefined && threshold !== null && threshold !== ""
+      threshold !== undefined &&
+      threshold !== null &&
+      threshold !== ""
         ? Number(threshold)
         : null;
 
@@ -136,6 +201,7 @@ app.post("/v1/price/check", async (req, res) => {
     });
   } catch (err) {
     console.error("❌ Price check failed:", err);
+
     return res.status(500).json({
       ok: false,
       error: err.message || String(err)
@@ -166,7 +232,6 @@ async function scrapePrice(url) {
 
     const title = await page.title();
 
-    // Try common price selectors first
     const possibleSelectors = [
       '[itemprop="price"]',
       '[data-testid*="price"]',
@@ -182,8 +247,11 @@ async function scrapePrice(url) {
       try {
         const el = page.locator(selector).first();
         const count = await el.count();
+
         if (count > 0) {
-          const tagName = await el.evaluate((node) => node.tagName.toLowerCase());
+          const tagName = await el.evaluate((node) =>
+            node.tagName.toLowerCase()
+          );
 
           if (tagName === "meta") {
             priceText = await el.getAttribute("content");
@@ -191,14 +259,15 @@ async function scrapePrice(url) {
             priceText = await el.textContent();
           }
 
-          if (priceText && priceText.trim()) break;
+          if (priceText && priceText.trim()) {
+            break;
+          }
         }
       } catch {
-        // keep going
+        // Continue to the next selector.
       }
     }
 
-    // Fallback: scan page text
     if (!priceText) {
       const bodyText = await page.locator("body").innerText();
       priceText = bodyText;
@@ -212,25 +281,42 @@ async function scrapePrice(url) {
       currency: parsed.currency
     };
   } finally {
-    if (browser) await browser.close();
+    if (browser) {
+      await browser.close();
+    }
   }
 }
 
 function extractPrice(text) {
   if (!text || typeof text !== "string") {
-    return { price: null, currency: "USD" };
+    return {
+      price: null,
+      currency: "USD"
+    };
   }
 
-  // Common price patterns
   const patterns = [
-    { regex: /\$[\s]*([0-9]+(?:,[0-9]{3})*(?:\.[0-9]{2})?)/, currency: "USD" },
-    { regex: /USD[\s]*([0-9]+(?:,[0-9]{3})*(?:\.[0-9]{2})?)/i, currency: "USD" },
-    { regex: /€[\s]*([0-9]+(?:\.[0-9]{3})*(?:,[0-9]{2})?)/, currency: "EUR" },
-    { regex: /£[\s]*([0-9]+(?:,[0-9]{3})*(?:\.[0-9]{2})?)/, currency: "GBP" }
+    {
+      regex: /\$[\s]*([0-9]+(?:,[0-9]{3})*(?:\.[0-9]{2})?)/,
+      currency: "USD"
+    },
+    {
+      regex: /USD[\s]*([0-9]+(?:,[0-9]{3})*(?:\.[0-9]{2})?)/i,
+      currency: "USD"
+    },
+    {
+      regex: /€[\s]*([0-9]+(?:\.[0-9]{3})*(?:,[0-9]{2})?)/,
+      currency: "EUR"
+    },
+    {
+      regex: /£[\s]*([0-9]+(?:,[0-9]{3})*(?:\.[0-9]{2})?)/,
+      currency: "GBP"
+    }
   ];
 
   for (const pattern of patterns) {
     const match = text.match(pattern.regex);
+
     if (match && match[1]) {
       let raw = match[1];
 
@@ -241,6 +327,7 @@ function extractPrice(text) {
       }
 
       const price = Number(raw);
+
       if (Number.isFinite(price)) {
         return {
           price,
@@ -250,7 +337,10 @@ function extractPrice(text) {
     }
   }
 
-  return { price: null, currency: "USD" };
+  return {
+    price: null,
+    currency: "USD"
+  };
 }
 
 export default app;
