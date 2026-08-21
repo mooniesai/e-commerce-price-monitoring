@@ -16,6 +16,11 @@ import {
 
 const app = express();
 
+// Railway sits in front of the app as a reverse proxy.
+// Trust the forwarded protocol so x402/Bazaar generates
+// https:// resource URLs instead of internal http:// URLs.
+app.set("trust proxy", 1);
+
 app.use(cors());
 app.use(express.json());
 
