@@ -255,8 +255,8 @@ app.use(
           }
         ],
 
-        description:
-          "Fetch the current product price from a public e-commerce product URL and optionally compare it with a target price.",
+       description:
+  "Real-time product price lookup from a public e-commerce product URL. Use for product price checks, price monitoring, price comparison, shopping agents, ecommerce research, retail workflows, deal finding, and target-price tracking.",
 
         mimeType: "application/json",
         serviceName: "Price Watcher API",
