@@ -55,6 +55,152 @@ const resourceServer = new x402ResourceServer(facilitatorClient)
 app.get("/", (req, res) => {
   res.send("Price Watcher API — POST /v1/price/check");
 });
+app.get("/openapi.json", (req, res) => {
+  res.json({
+    openapi: "3.1.0",
+
+    info: {
+      title: "Price Watcher API",
+      version: "1.0.0",
+      description:
+        "Machine-payable e-commerce price checking API powered by x402.",
+
+      "x-guidance":
+        "Use POST /v1/price/check when you need the current price of a product from a public e-commerce product URL. Provide the product URL and optionally a target threshold. The request costs $0.02 via x402 on Base.",
+
+      contact: {
+        email: "bernettamoore2@gmail.com"
+      }
+    },
+
+    servers: [
+      {
+        url: "https://e-commerce-price-monitoring-production.up.railway.app"
+      }
+    ],
+
+    paths: {
+      "/v1/price/check": {
+        post: {
+          operationId: "checkProductPrice",
+
+          summary: "Check the current price of an e-commerce product",
+
+          description:
+            "Fetch the current product price from a public e-commerce product URL and optionally compare it with a target price.",
+
+          tags: ["E-commerce", "Price Monitoring"],
+
+          "x-payment-info": {
+            price: {
+              mode: "fixed",
+              currency: "USD",
+              amount: "0.020000"
+            },
+
+            protocols: [
+              {
+                x402: {}
+              }
+            ]
+          },
+
+          requestBody: {
+            required: true,
+
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+
+                  properties: {
+                    url: {
+                      type: "string",
+                      format: "uri",
+                      description:
+                        "Public e-commerce product page URL to check."
+                    },
+
+                    threshold: {
+                      type: "number",
+                      description:
+                        "Optional target price used to determine whether the current price is at or below the desired amount."
+                    }
+                  },
+
+                  required: ["url"]
+                },
+
+                example: {
+                  url: "https://www.sephora.com/product/example-product",
+                  threshold: 20
+                }
+              }
+            }
+          },
+
+          responses: {
+            "200": {
+              description: "Successful price check",
+
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+
+                    properties: {
+                      ok: {
+                        type: "boolean"
+                      },
+
+                      url: {
+                        type: "string"
+                      },
+
+                      title: {
+                        type: ["string", "null"]
+                      },
+
+                      price: {
+                        type: ["number", "null"]
+                      },
+
+                      currency: {
+                        type: ["string", "null"]
+                      },
+
+                      threshold: {
+                        type: ["number", "null"]
+                      },
+
+                      belowThreshold: {
+                        type: ["boolean", "null"]
+                      }
+                    },
+
+                    required: ["ok", "url"]
+                  }
+                }
+              }
+            },
+
+            "400": {
+              description: "Invalid request"
+            },
+
+            "402": {
+              description: "Payment Required"
+            },
+
+            "500": {
+              description: "Price check failed"
+            }
+          }
+        }
+      }
+    }
+  });
+});
 
 // Optional diagnostic route
 app.get("/playwright-check", async (req, res) => {
