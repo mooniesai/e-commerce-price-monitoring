@@ -62,8 +62,8 @@ app.get("/openapi.json", (req, res) => {
     info: {
       title: "Price Watcher API",
       version: "1.0.0",
-      description:
-        "Machine-payable e-commerce price checking API powered by x402.",
+  description:
+  "Real-time e-commerce product price lookup for shopping agents, deal finders, wishlist monitors, and retail workflows. Send a public product URL to get the current price and optionally compare it with a target price.",
 
       "x-guidance":
         "Use POST /v1/price/check when you need the current price of a product from a public e-commerce product URL. Provide the product URL and optionally a target threshold. The request costs $0.02 via x402 on Base.",
@@ -259,6 +259,15 @@ app.use(
           "Fetch the current product price from a public e-commerce product URL and optionally compare it with a target price.",
 
         mimeType: "application/json",
+        serviceName: "Price Watcher API",
+
+tags: [
+  "product-price",
+  "ecommerce",
+  "shopping",
+  "price-monitoring",
+  "retail"
+],
 
         extensions: {
           ...declareDiscoveryExtension({
